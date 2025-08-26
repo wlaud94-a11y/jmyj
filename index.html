@@ -110,12 +110,8 @@
         remainingAdults -= mixedPairs;
         remainingStudents -= mixedPairs;
 
-        // 4. 남은 인원 한 명에 대한 요금 계산 (성인 요금 적용)
-        if (remainingAdults > 0) {
-            totalCost += adultPairPrice; // 남은 성인 한 명은 성인 요금 적용
-        } else if (remainingStudents > 0) {
-            totalCost += adultPairPrice; // 남은 학생 한 명은 성인 요금 적용 (규칙에 따름)
-        }
+        // 4. 남은 1명은 짝이 없으므로 요금 계산에서 제외
+        // 이전 오류와 달리, 남은 인원은 요금 계산에 포함시키지 않습니다.
 
         document.getElementById('result').textContent = '총 요금: ' + totalCost.toLocaleString() + '원';
     }
