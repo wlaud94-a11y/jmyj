@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>1+1 요금 계산기</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            flex-direction: column;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h2 {
+            color: #333;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 24px;
+            color: #333;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>1+1 행사 요금 계산기</h2>
+    <div class="input-group">
+        <label for="adults">성인 수</label>
+        <input type="number" id="adults" value="0" min="0">
+    </div>
+    <div class="input-group">
+        <label for="students">학생 수</label>
+        <input type="number" id="students" value="0" min="0">
+    </div>
+    <button onclick="calculateCost()">계산하기</button>
+    <div id="result"></div>
+</div>
+
+<script>
+    function calculateCost() {
+        const adults = Number(document.getElementById('adults').value);
+        const students = Number(document.getElementById('students').value);
+
+        if (isNaN(adults) || isNaN(students) || adults < 0 || students < 0) {
+            document.getElementById('result').textContent = "유효한 숫자를 입력해 주세요.";
+            return;
+        }
+
+        const adultPairPrice = 7000;
+        const studentPairPrice = 5000;
+        
+        let totalCost = 0;
+        let remainingAdults = adults;
+        let remainingStudents = students;
+
+        // 학생 2명씩 먼저 묶습니다 (가장 저렴한 짝)
+        const studentPairs = Math.floor(remainingStudents / 2);
+        totalCost += studentPairs * studentPairPrice;
+        remainingStudents = remainingStudents % 2;
+
+        // 남은 성인과 학생을 묶습니다 (성인 요금 적용)
+        const mixedPairs = Math.min(remainingAdults, remainingStudents);
+        totalCost += mixedPairs * adultPairPrice;
+        remainingAdults -= mixedPairs;
+        remainingStudents -= mixedPairs;
+        
+        // 남은 성인 2명씩 묶습니다 (성인 요금 적용)
+        const adultPairs = Math.floor(remainingAdults / 2);
+        totalCost += adultPairs * adultPairPrice;
+        remainingAdults = remainingAdults % 2;
+
+        document.getElementById('result').textContent = '총 요금: ' + totalCost.toLocaleString() + '원';
+    }
+</script>
+
+</body>
+</html>
