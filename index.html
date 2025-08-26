@@ -89,30 +89,33 @@
 
         const adultPairPrice = 7000;
         const studentPairPrice = 5000;
+        const singleAdultPrice = 7000;
+        const singleStudentPrice = 5000;
         
         let totalCost = 0;
-        let remainingAdults = adults;
-        let remainingStudents = students;
-
-        // 1. 학생-학생 짝 계산 (가장 저렴한 짝)
-        const studentPairs = Math.floor(remainingStudents / 2);
-        totalCost += studentPairs * studentPairPrice;
-        remainingStudents = remainingStudents % 2;
-
-        // 2. 성인-성인 짝 계산
-        const adultPairs = Math.floor(remainingAdults / 2);
-        totalCost += adultPairs * adultPairPrice;
-        remainingAdults = remainingAdults % 2;
         
-        // 3. 남은 성인-학생 짝 계산 (성인 요금 적용)
-        const mixedPairs = Math.min(remainingAdults, remainingStudents);
-        totalCost += mixedPairs * adultPairPrice;
-        remainingAdults -= mixedPairs;
-        remainingStudents -= mixedPairs;
-
-        // 4. 남은 1명은 짝이 없으므로 요금 계산에서 제외
-        // 이전 오류와 달리, 남은 인원은 요금 계산에 포함시키지 않습니다.
-
+        // 성인 짝 계산
+        const adultPairs = Math.floor(adults / 2);
+        const remainingAdults = adults % 2;
+        totalCost += adultPairs * adultPairPrice;
+        
+        // 학생 짝 계산
+        const studentPairs = Math.floor(students / 2);
+        const remainingStudents = students % 2;
+        totalCost += studentPairs * studentPairPrice;
+        
+        // 남은 인원 계산
+        if (remainingAdults > 0 && remainingStudents > 0) {
+            // 남은 성인 1명과 학생 1명
+            totalCost += adultPairPrice;
+        } else if (remainingAdults > 0) {
+            // 남은 성인 1명
+            totalCost += singleAdultPrice;
+        } else if (remainingStudents > 0) {
+            // 남은 학생 1명
+            totalCost += singleStudentPrice;
+        }
+        
         document.getElementById('result').textContent = '총 요금: ' + totalCost.toLocaleString() + '원';
     }
 </script>
