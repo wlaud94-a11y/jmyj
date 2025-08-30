@@ -137,70 +137,51 @@ function updateSummary(){
     promoToggle.disabled=gameCount<2;
     if(gameCount<2) promoToggle.checked=false;
 
-    let depositTotal=0;
-    if(deposit1.checked) depositTotal+=5000;
-    if(deposit2.checked && gameCount>=2) depositTotal+=5000;
-    if(deposit3.checked && gameCount>=3) depositTotal+=5000;
+    // 게임별 예약금 체크
+    const depositArr=[deposit1.checked,deposit2.checked,deposit3.checked];
 
-    // 1게임 금액
-    let game1AdultPrice = qty.adult*7000;
-    let game1StudentPrice = qty.student*5000;
-    let game1SlushPrice = qty.slush*1500;
-    let game1SocksPrice = qty.socks*1000;
-    let game1DrinkPrice = qty.drink*1000;
-    let game1Total = game1AdultPrice + game1StudentPrice + game1SlushPrice + game1SocksPrice + game1DrinkPrice;
-    if(deposit1.checked) game1Total -=5000;
-
-    // 2게임 이상 금액
-    let game2Total=0;
-    if(gameCount>1){
-        let totalAdult = qty.adult*(gameCount-1);
-        let totalStudent = qty.student*(gameCount-1);
-        let paidAdult=totalAdult, paidStudent=totalStudent;
-        if(promoToggle.checked){
-            const promo=applyPromotion(totalAdult,totalStudent);
-            paidAdult = promo.adultPaid;
-            paidStudent = promo.studentPaid;
-        }
-        game2Total = paidAdult*7000 + paidStudent*5000;
-        if(deposit2.checked) game2Total -=5000;
-        if(deposit3.checked && gameCount>=3) game2Total -=5000;
-    }
-
-    let total=game1Total + game2Total;
-    totalPriceEl.innerHTML='<b>₩'+total.toLocaleString()+'</b>';
-
+    let receipt='';
+    let total=0;
     let now = new Date();
     let timeStr = now.toLocaleString();
-    let receipt = `팀: ${teamNameInput.value || '없음'}\n발행 시간: ${timeStr}\n------------------------------\n`;
-    receipt += `게임1\n`;
-    receipt += `성인 ${qty.adult}명 x 7,000원 = ₩${game1AdultPrice.toLocaleString()}\n`;
-    receipt += `학생 ${qty.student}명 x 5,000원 = ₩${game1StudentPrice.toLocaleString()}\n`;
-    receipt += `슬러시 ${qty.slush}개 x 1,500원 = ₩${game1SlushPrice.toLocaleString()}\n`;
-    receipt += `양말 ${qty.socks}개 x 1,000원 = ₩${game1SocksPrice.toLocaleString()}\n`;
-    receipt += `음료 ${qty.drink}개 x 1,000원 = ₩${game1DrinkPrice.toLocaleString()}\n`;
-    if(deposit1.checked) receipt += `예약금 차감 -₩5,000\n`;
-    receipt += `합계: ₩${game1Total.toLocaleString()}\n------------------------------\n`;
+    receipt += `팀: ${teamNameInput.value || '없음'}\n발행 시간: ${timeStr}\n------------------------------\n`;
 
-    if(gameCount>1){
-        receipt += `${gameCount-1}게임${promoToggle.checked?' (1+1 행사 적용)':''}\n`;
-        let totalAdult = qty.adult*(gameCount-1);
-        let totalStudent = qty.student*(gameCount-1);
-        let paidAdult=totalAdult, paidStudent=totalStudent;
-        if(promoToggle.checked){
-            const promo=applyPromotion(totalAdult,totalStudent);
-            paidAdult = promo.adultPaid;
-            paidStudent = promo.studentPaid;
+    for(let g=1; g<=gameCount; g++){
+        let gameAdult = qty.adult;
+        let gameStudent = qty.student;
+        let gameSlush = g===1 ? qty.slush : 0;
+        let gameSocks = g===1 ? qty.socks : 0;
+        let gameDrink = g===1 ? qty.drink : 0;
+        let gameTotal=0;
+        let dep=depositArr[g-1]?5000:0;
+
+        // 1+1 행사 적용
+        let paidAdult=gameAdult, paidStudent=gameStudent;
+        if(promoToggle.checked && g>=2){
+            const promo=applyPromotion(gameAdult,gameStudent);
+            paidAdult=promo.adultPaid;
+            paidStudent=promo.studentPaid;
         }
-        receipt += `성인 ${totalAdult}명 → ${paidAdult}명 요금 = ₩${(paidAdult*7000).toLocaleString()}\n`;
-        receipt += `학생 ${totalStudent}명 → ${paidStudent}명 요금 = ₩${(paidStudent*5000).toLocaleString()}\n`;
-        if(deposit2.checked) receipt += `예약금 차감 -₩5,000\n`;
-        if(deposit3.checked && gameCount>=3) receipt += `예약금 차감 -₩5,000\n`;
-        receipt += `합계: ₩${game2Total.toLocaleString()}\n------------------------------\n`;
+
+        gameTotal = paidAdult*7000 + paidStudent*5000 + gameSlush*1500 + gameSocks*1000 + gameDrink*1000 - dep;
+        total += gameTotal;
+
+        receipt += `게임${g}${(promoToggle.checked && g>=2)?' (1+1 행사 적용)':''}\n`;
+        receipt += `성인 ${gameAdult}명 → ${paidAdult}명 요금 = ₩${(paidAdult*7000).toLocaleString()}\n`;
+        receipt += `학생 ${gameStudent}명 → ${paidStudent}명 요금 = ₩${(paidStudent*5000).toLocaleString()}\n`;
+        if(g===1){
+            receipt += `슬러시 ${gameSlush}개 x 1,500원 = ₩${(gameSlush*1500).toLocaleString()}\n`;
+            receipt += `양말 ${gameSocks}개 x 1,000원 = ₩${(gameSocks*1000).toLocaleString()}\n`;
+            receipt += `음료 ${gameDrink}개 x 1,000원 = ₩${(gameDrink*1000).toLocaleString()}\n`;
+        }
+        if(dep>0) receipt += `예약금 차감 -₩${dep.toLocaleString()}\n`;
+        receipt += `합계: ₩${gameTotal.toLocaleString()}\n------------------------------\n`;
     }
 
     receipt += `총 금액: ₩${total.toLocaleString()}\n`;
-    receiptWrap.innerText = receipt;
+    receiptWrap.innerText=receipt;
+
+    totalPriceEl.innerHTML='<b>₩'+total.toLocaleString()+'</b>';
 
     const received = Number(receivedAmount.value) || 0;
     const change = received - total;
