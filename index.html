@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>게임 계산기 (1+1 + 예약금)</title>
+<title>단일 팀 게임 계산기</title>
 <style>
 body{font-family:sans-serif;background:#f6f7fb;margin:0;padding:16px;color:#111827;}
 .wrap{max-width:600px;margin:auto;}
-h1{font-size:20px;margin-bottom:6px;}
+h1{font-size:22px;margin-bottom:6px;}
 p.lead{color:#6b7280;font-size:13px;margin:0 0 16px;}
 .item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:12px;margin-bottom:8px;border-radius:12px;border:1px solid #e6e9ef;}
 .left{display:flex;flex-direction:column;}
@@ -19,14 +19,18 @@ button{padding:6px 10px;border-radius:8px;border:none;cursor:pointer;}
 button.btn{background:#111827;color:#fff;}
 .summary{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:12px;border-radius:12px;border:1px solid #e6e9ef;margin-top:12px;}
 .receipt{margin-top:10px;background:#fff;padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px;}
-.promo-label{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:14px;}
-.deposit{margin:10px 0; padding:8px; background:#fff; border-radius:12px; border:1px solid #e6e9ef;}
+.promo-label, .deposit{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:14px;}
+input#teamName{border:1px solid #d1d5db;border-radius:6px;padding:4px;width:150px;}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>게임 계산기</h1>
-<p class="lead">기본 계산 또는 1+1 행사 적용 여부를 선택할 수 있습니다.</p>
+<h1>단일 팀 게임 계산기</h1>
+<p class="lead">1+1 행사, 예약금 적용, 연속게임, 영수증 출력 가능</p>
+
+<label class="promo-label">
+팀 이름: <input type="text" id="teamName" placeholder="팀 이름 입력">
+</label>
 
 <label class="promo-label">
 <input type="checkbox" id="promoToggle"> 1+1 행사 적용
@@ -48,11 +52,7 @@ button.btn{background:#111827;color:#fff;}
 </select>
 </div>
 <div>
-<div class="muted">총 수량</div>
-<div id="totalCount" style="font-weight:700">0</div>
-</div>
-<div>
-<div class="muted">합계</div>
+<div class="muted">총 합계</div>
 <div id="totalPrice" style="font-weight:700">₩0</div>
 </div>
 </div>
@@ -62,9 +62,10 @@ button.btn{background:#111827;color:#fff;}
 <div style="margin-top:12px;">
 <button id="clearBtn" class="btn" style="background:#efefef;color:#111827;">전체 초기화</button>
 <button id="printBtn" class="btn">영수증 인쇄/저장</button>
-</div>
+<button id="saveImgBtn" class="btn">영수증 이미지 저장</button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 (function(){
 const ITEMS=[
@@ -74,33 +75,34 @@ const ITEMS=[
 {id:'socks',label:'양말',price:1000},
 {id:'drink',label:'음료수',price:1000},
 ];
+
 let qty={adult:0,student:0,slush:0,socks:0,drink:0};
 const app=document.getElementById('app');
-const totalCountEl=document.getElementById('totalCount');
-const totalPriceEl=document.getElementById('totalPrice');
-const receiptWrap=document.getElementById('receiptWrap');
-const gameCountSel=document.getElementById('gameCount');
 const promoToggle=document.getElementById('promoToggle');
 const depositChk=document.getElementById('depositChk');
+const gameCountSel=document.getElementById('gameCount');
+const totalPriceEl=document.getElementById('totalPrice');
+const receiptWrap=document.getElementById('receiptWrap');
+const teamNameInput=document.getElementById('teamName');
 
 function currency(num){ return new Intl.NumberFormat('ko-KR',{style:'currency',currency:'KRW',maximumFractionDigits:0}).format(num); }
 
 function createItemRow(it){
-const row=document.createElement('div'); row.className='item';
-const left=document.createElement('div'); left.className='left';
-left.innerHTML=`<div class="label">${it.label}</div><div class="price">${currency(it.price)}</div>`;
-const controls=document.createElement('div'); controls.className='controls';
-const dec=document.createElement('button'); dec.innerText='−';
-const inp=document.createElement('input'); inp.type='number'; inp.className='num'; inp.value=qty[it.id];
-const inc=document.createElement('button'); inc.innerText='+';
-const line=document.createElement('div'); line.style.minWidth='60px'; line.style.textAlign='right'; line.style.fontWeight='600';
-controls.appendChild(dec); controls.appendChild(inp); controls.appendChild(inc); controls.appendChild(line);
-row.appendChild(left); row.appendChild(controls);
-dec.onclick=()=>{changeQty(it.id,-1)};
-inc.onclick=()=>{changeQty(it.id,1)};
-inp.onchange=()=>{setQty(it.id,parseInt(inp.value)||0)};
-row._elements={inp,line};
-return row;
+    const row=document.createElement('div'); row.className='item';
+    const left=document.createElement('div'); left.className='left';
+    left.innerHTML=`<div class="label">${it.label}</div><div class="price">${currency(it.price)}</div>`;
+    const controls=document.createElement('div'); controls.className='controls';
+    const dec=document.createElement('button'); dec.innerText='−';
+    const inp=document.createElement('input'); inp.type='number'; inp.className='num'; inp.value=qty[it.id];
+    const inc=document.createElement('button'); inc.innerText='+';
+    const line=document.createElement('div'); line.style.minWidth='60px'; line.style.textAlign='right'; line.style.fontWeight='600';
+    controls.appendChild(dec); controls.appendChild(inp); controls.appendChild(inc); controls.appendChild(line);
+    row.appendChild(left); row.appendChild(controls);
+    row._elements={inp,line};
+    dec.onclick=()=>{changeQty(it.id,-1)};
+    inc.onclick=()=>{changeQty(it.id,1)};
+    inp.oninput=()=>{setQty(it.id,parseInt(inp.value)||0)};
+    return row;
 }
 
 const rows={};
@@ -114,79 +116,107 @@ function applyPromotion(adultCount, studentCount, gameCount){
     let studentPaid = Math.floor(studentCount/2);
     let adultRemain = adultCount%2;
     let studentRemain = studentCount%2;
-    if(adultRemain && studentRemain){
-        adultPaid += 1;
-        adultRemain = 0;
-        studentRemain = 0;
-    }
-    adultPaid += adultRemain;
-    studentPaid += studentRemain;
+    if(adultRemain && studentRemain){ adultPaid+=1; adultRemain=0; studentRemain=0; }
+    adultPaid += adultRemain; studentPaid += studentRemain;
     let adultPrice = adultPaid * 7000 * gameCount;
     let studentPrice = studentPaid * 5000 * gameCount;
     return {adultPaid, studentPaid, adultPrice, studentPrice};
 }
 
+let prePromoTotal = 0;
+
 function updateSummary(){
-const gameCount=Number(gameCountSel.value)||1;
-const promoOn=promoToggle.checked;
-ITEMS.forEach(it=>{rows[it.id]._elements.inp.value = qty[it.id];});
+    const gameCount = Number(gameCountSel.value) || 1;
+    const promoOn = promoToggle.checked;
 
-let totalQty=0,totalPrice=0;
-const adultCount=qty['adult'];
-const studentCount=qty['student'];
-let adultPaid, studentPaid, adultPrice, studentPrice;
+    // 체크 전 금액 계산
+    let tempTotal = 0;
+    tempTotal += qty['adult'] * 7000 * gameCount;
+    tempTotal += qty['student'] * 5000 * gameCount;
+    ['slush','socks','drink'].forEach(id => { tempTotal += qty[id] * ITEMS.find(i=>i.id===id).price * gameCount; });
+    prePromoTotal = tempTotal;
 
-if(promoOn){ ({adultPaid,studentPaid,adultPrice,studentPrice}=applyPromotion(adultCount,studentCount,gameCount)); }
-else{ adultPaid=adultCount; studentPaid=studentCount; adultPrice=adultCount*7000*gameCount; studentPrice=studentCount*5000*gameCount; }
+    ITEMS.forEach(it=>{rows[it.id]._elements.inp.value = qty[it.id];});
 
-totalQty+=adultCount+studentCount;
-rows['adult']._elements.line.innerText=currency(adultPrice);
-rows['student']._elements.line.innerText=currency(studentPrice);
-totalPrice+=adultPrice+studentPrice;
+    // 1+1 행사 적용 시 슬러시/양말/음료 초기화
+    if(promoOn){ qty['slush'] = 0; qty['socks'] = 0; qty['drink'] = 0; }
 
-['slush','socks','drink'].forEach(id=>{
-const q=qty[id]; const price=q*ITEMS.find(i=>i.id===id).price;
-rows[id]._elements.line.innerText=currency(price);
-totalQty+=q; totalPrice+=price;
-});
+    let totalPrice=0;
+    let adultCount=qty['adult'];
+    let studentCount=qty['student'];
+    let adultPaid, studentPaid, adultPrice, studentPrice;
 
-// 예약금 처리 (게임 횟수 × 5,000원 차감)
-let depositAmount = 0;
-if(depositChk.checked) depositAmount = 5000 * gameCount;
-totalPrice -= depositAmount;
-if(totalPrice<0) totalPrice=0;
+    if(promoOn){ ({adultPaid,studentPaid,adultPrice,studentPrice}=applyPromotion(adultCount,studentCount,gameCount)); }
+    else{ adultPaid=adultCount; studentPaid=studentCount; adultPrice=adultCount*7000*gameCount; studentPrice=studentCount*5000*gameCount; }
 
-totalCountEl.textContent=totalQty;
-totalPriceEl.textContent=currency(totalPrice);
+    rows['adult']._elements.line.innerText=currency(adultPrice);
+    rows['student']._elements.line.innerText=currency(studentPrice);
+    totalPrice+=adultPrice+studentPrice;
 
-renderReceipt(gameCount,{adultCount,studentCount,adultPaid,studentPaid,adultPrice,studentPrice},promoOn,depositAmount);
+    ['slush','socks','drink'].forEach(id=>{
+        const q=qty[id]; const price=q*ITEMS.find(i=>i.id===id).price*gameCount;
+        rows[id]._elements.line.innerText=currency(price);
+        totalPrice+=price;
+    });
+
+    // 예약금 적용 (1+1 행사 체크 시 자동 2배)
+    let depositAmount = 0;
+    if(depositChk.checked){
+        depositAmount = 5000 * gameCount;
+        if(promoOn) depositAmount *= 2;
+    }
+    totalPrice -= depositAmount;
+    if(totalPrice<0) totalPrice=0;
+
+    // 합산 표시
+    totalPriceEl.textContent = currency(totalPrice) + (promoOn ? ` (+${currency(prePromoTotal)} 합산)` : '');
+
+    renderReceipt(gameCount,{adultCount,studentCount,adultPaid,studentPaid,adultPrice,studentPrice},promoOn,depositAmount,prePromoTotal);
 }
 
-function renderReceipt(gameCount,promo,promoOn,depositAmount){
-let lines=[];
-if(qty['adult']>0) lines.push({label:promoOn?`성인 ${qty['adult']}명 (1+1 적용 ${promo.adultPaid}명 요금)`:`성인 ${qty['adult']}명`,price:promo.adultPrice});
-if(qty['student']>0) lines.push({label:promoOn?`학생 ${qty['student']}명 (1+1 적용 ${promo.studentPaid}명 요금)`:`학생 ${qty['student']}명`,price:promo.studentPrice});
-['slush','socks','drink'].forEach(id=>{ const q=qty[id]; if(q>0){ const item=ITEMS.find(i=>i.id===id); lines.push({label:`${item.label} × ${q}`,price:q*item.price}); } });
-if(depositAmount>0) lines.push({label:`예약금 차감`, price:-depositAmount});
-if(!lines.length){receiptWrap.innerHTML=''; return;}
-let html='<div class="receipt"><div style="font-weight:700;margin-bottom:8px">영수증 미리보기</div>';
-let total=0; lines.forEach(l=>{ html+=`<div style="display:flex;justify-content:space-between;padding:4px 0"><div>${l.label}</div><div style="font-weight:600">${currency(l.price)}</div></div>`; total+=l.price; });
-html+=`<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px dashed #e6e9ef;padding-top:8px"><div>합계</div><div style="font-weight:800">${currency(total)}</div></div></div>`;
-receiptWrap.innerHTML=html;
+function renderReceipt(gameCount,promo,promoOn,depositAmount,prePromoTotal){
+    let lines=[];
+    lines.push({label:`성인 ${qty['adult']}명${promoOn?` (1+1 적용 ${promo.adultPaid}명 요금)`:''}`,price:promo.adultPrice});
+    lines.push({label:`학생 ${qty['student']}명${promoOn?` (1+1 적용 ${promo.studentPaid}명 요금)`:''}`,price:promo.studentPrice});
+    ['slush','socks','drink'].forEach(id=>{
+        const q=qty[id]; if(q>0){ const item=ITEMS.find(i=>i.id===id); lines.push({label:`${item.label} × ${q}`,price:q*item.price*gameCount}); }
+    });
+    if(depositAmount>0) lines.push({label:`예약금 차감`,price:-depositAmount});
+    if(promoOn) lines.push({label:`1+1 행사 체크 전 금액`, price:prePromoTotal});
+
+    let html='<div class="receipt"><div style="font-weight:700;margin-bottom:8px">영수증 미리보기</div>';
+    const now=new Date(); 
+    const teamName = teamNameInput.value.trim() || '팀 없음';
+    html+=`<div>팀: ${teamName}</div>`;
+    html+=`<div>날짜: ${now.toLocaleString()}</div>`;
+    let total=0;
+    lines.forEach(l=>{ html+=`<div style="display:flex;justify-content:space-between;padding:4px 0"><div>${l.label}</div><div style="font-weight:600">${currency(l.price)}</div></div>`; total+=l.price; });
+    html+=`<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px dashed #e6e9ef;padding-top:4px"><div>총 합계</div><div style="font-weight:800">${currency(total)}</div></div></div>`;
+    receiptWrap.innerHTML=html;
 }
 
-gameCountSel.onchange=updateSummary;
-promoToggle.onchange=updateSummary;
+promoToggle.onchange = updateSummary;
 depositChk.onchange=updateSummary;
+gameCountSel.onchange=updateSummary;
+teamNameInput.oninput=updateSummary;
 
 document.getElementById('clearBtn').onclick=()=>{
-  if(confirm('모든 수량을 초기화하시겠습니까?')){
-    for(let k in qty) qty[k]=0; updateSummary();
-    depositChk.checked=false;
-  }
+    Object.keys(qty).forEach(k=>qty[k]=0);
+    depositChk.checked=false; promoToggle.checked=false;
+    gameCountSel.value='1';
+    teamNameInput.value='';
+    updateSummary();
 };
 
-document.getElementById('printBtn').onclick=()=>{ window.print(); }
+document.getElementById('printBtn').onclick=()=>{ window.print(); };
+document.getElementById('saveImgBtn').onclick=()=>{
+    html2canvas(receiptWrap).then(canvas=>{
+        const link=document.createElement('a');
+        link.download='receipt.png';
+        link.href=canvas.toDataURL('image/png');
+        link.click();
+    });
+};
 
 updateSummary();
 })();
