@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>게임 계산기 (1+1 적용)</title>
+<title>게임 계산기 (1+1 + 예약금)</title>
 <style>
 body{font-family:sans-serif;background:#f6f7fb;margin:0;padding:16px;color:#111827;}
 .wrap{max-width:600px;margin:auto;}
@@ -20,6 +20,7 @@ button.btn{background:#111827;color:#fff;}
 .summary{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:12px;border-radius:12px;border:1px solid #e6e9ef;margin-top:12px;}
 .receipt{margin-top:10px;background:#fff;padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px;}
 .promo-label{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:14px;}
+.deposit{margin:10px 0; padding:8px; background:#fff; border-radius:12px; border:1px solid #e6e9ef;}
 </style>
 </head>
 <body>
@@ -32,6 +33,10 @@ button.btn{background:#111827;color:#fff;}
 </label>
 
 <div id="app"></div>
+
+<div class="deposit">
+<label><input type="checkbox" id="depositChk"> 예약금 5,000원 적용</label>
+</div>
 
 <div class="summary">
 <div>
@@ -76,6 +81,7 @@ const totalPriceEl=document.getElementById('totalPrice');
 const receiptWrap=document.getElementById('receiptWrap');
 const gameCountSel=document.getElementById('gameCount');
 const promoToggle=document.getElementById('promoToggle');
+const depositChk=document.getElementById('depositChk');
 
 function currency(num){ return new Intl.NumberFormat('ko-KR',{style:'currency',currency:'KRW',maximumFractionDigits:0}).format(num); }
 
@@ -90,7 +96,6 @@ const inc=document.createElement('button'); inc.innerText='+';
 const line=document.createElement('div'); line.style.minWidth='60px'; line.style.textAlign='right'; line.style.fontWeight='600';
 controls.appendChild(dec); controls.appendChild(inp); controls.appendChild(inc); controls.appendChild(line);
 row.appendChild(left); row.appendChild(controls);
-
 dec.onclick=()=>{changeQty(it.id,-1)};
 inc.onclick=()=>{changeQty(it.id,1)};
 inp.onchange=()=>{setQty(it.id,parseInt(inp.value)||0)};
@@ -104,37 +109,27 @@ ITEMS.forEach(it=>{rows[it.id]=createItemRow(it);app.appendChild(rows[it.id]);})
 function changeQty(id,delta){ setQty(id,(qty[id]||0)+delta); }
 function setQty(id,val){ qty[id]=Math.max(0,val); updateSummary(); }
 
-// 1+1 행사 로직 (남은 홀수 묶음 → 성인 요금)
 function applyPromotion(adultCount, studentCount, gameCount){
     let adultPaid = Math.floor(adultCount/2);
     let studentPaid = Math.floor(studentCount/2);
     let adultRemain = adultCount%2;
     let studentRemain = studentCount%2;
-
-    // 남은 홀수끼리 묶기 → 성인 요금
     if(adultRemain && studentRemain){
-        adultPaid += 1; // 묶인 그룹은 성인 요금으로
+        adultPaid += 1;
         adultRemain = 0;
         studentRemain = 0;
     }
-
     adultPaid += adultRemain;
     studentPaid += studentRemain;
-
     let adultPrice = adultPaid * 7000 * gameCount;
     let studentPrice = studentPaid * 5000 * gameCount;
-
     return {adultPaid, studentPaid, adultPrice, studentPrice};
 }
 
 function updateSummary(){
 const gameCount=Number(gameCountSel.value)||1;
 const promoOn=promoToggle.checked;
-
-// input 값 동기화
-ITEMS.forEach(it=>{
-  rows[it.id]._elements.inp.value = qty[it.id];
-});
+ITEMS.forEach(it=>{rows[it.id]._elements.inp.value = qty[it.id];});
 
 let totalQty=0,totalPrice=0;
 const adultCount=qty['adult'];
@@ -155,16 +150,24 @@ rows[id]._elements.line.innerText=currency(price);
 totalQty+=q; totalPrice+=price;
 });
 
+// 예약금 처리 (게임 횟수 × 5,000원 차감)
+let depositAmount = 0;
+if(depositChk.checked) depositAmount = 5000 * gameCount;
+totalPrice -= depositAmount;
+if(totalPrice<0) totalPrice=0;
+
 totalCountEl.textContent=totalQty;
 totalPriceEl.textContent=currency(totalPrice);
-renderReceipt(gameCount,{adultCount,studentCount,adultPaid,studentPaid,adultPrice,studentPrice},promoOn);
+
+renderReceipt(gameCount,{adultCount,studentCount,adultPaid,studentPaid,adultPrice,studentPrice},promoOn,depositAmount);
 }
 
-function renderReceipt(gameCount,promo,promoOn){
+function renderReceipt(gameCount,promo,promoOn,depositAmount){
 let lines=[];
 if(qty['adult']>0) lines.push({label:promoOn?`성인 ${qty['adult']}명 (1+1 적용 ${promo.adultPaid}명 요금)`:`성인 ${qty['adult']}명`,price:promo.adultPrice});
 if(qty['student']>0) lines.push({label:promoOn?`학생 ${qty['student']}명 (1+1 적용 ${promo.studentPaid}명 요금)`:`학생 ${qty['student']}명`,price:promo.studentPrice});
 ['slush','socks','drink'].forEach(id=>{ const q=qty[id]; if(q>0){ const item=ITEMS.find(i=>i.id===id); lines.push({label:`${item.label} × ${q}`,price:q*item.price}); } });
+if(depositAmount>0) lines.push({label:`예약금 차감`, price:-depositAmount});
 if(!lines.length){receiptWrap.innerHTML=''; return;}
 let html='<div class="receipt"><div style="font-weight:700;margin-bottom:8px">영수증 미리보기</div>';
 let total=0; lines.forEach(l=>{ html+=`<div style="display:flex;justify-content:space-between;padding:4px 0"><div>${l.label}</div><div style="font-weight:600">${currency(l.price)}</div></div>`; total+=l.price; });
@@ -174,10 +177,12 @@ receiptWrap.innerHTML=html;
 
 gameCountSel.onchange=updateSummary;
 promoToggle.onchange=updateSummary;
+depositChk.onchange=updateSummary;
 
 document.getElementById('clearBtn').onclick=()=>{
   if(confirm('모든 수량을 초기화하시겠습니까?')){
     for(let k in qty) qty[k]=0; updateSummary();
+    depositChk.checked=false;
   }
 };
 
