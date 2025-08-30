@@ -11,11 +11,12 @@ h1{font-size:22px;margin-bottom:6px;}
 .item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:12px;margin-bottom:8px;border-radius:12px;border:1px solid #e6e9ef;}
 .left{display:flex;flex-direction:column;}
 .label{font-weight:600;}
-.price{font-size:13px;color:#6b7280;}
-.controls{display:flex;align-items:center;gap:6px;}
+.controls{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 input.num{width:50px;text-align:center;border-radius:6px;border:1px solid #d1d5db;padding:4px;}
 button{padding:6px 10px;border-radius:8px;border:none;cursor:pointer;}
 button.btn{background:#111827;color:#fff;}
+button.qtyBtn{background:#e0e7ff;color:#111827;}
+button.qtyBtn.active{background:#3b82f6;color:#fff;}
 .summary{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:12px;border-radius:12px;border:1px solid #e6e9ef;margin-top:12px;}
 .receipt{margin-top:10px;background:#fff;padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px;white-space:pre-line;}
 </style>
@@ -92,15 +93,33 @@ ITEMS.forEach(it=>{
     const left=document.createElement('div'); left.className='left';
     left.innerHTML=`<div class="label">${it.label}</div><div class="price">${it.price.toLocaleString()}원</div>`;
     const controls=document.createElement('div'); controls.className='controls';
-    const dec=document.createElement('button'); dec.innerText='−';
-    const inp=document.createElement('input'); inp.type='number'; inp.className='num'; inp.value=0;
-    const inc=document.createElement('button'); inc.innerText='+';
-    controls.appendChild(dec); controls.appendChild(inp); controls.appendChild(inc);
+
+    for(let i=1;i<=8;i++){
+        const btn=document.createElement('button');
+        btn.innerText=i;
+        btn.className='qtyBtn';
+        btn.onclick=()=>{
+            setQty(it.id,i);
+            document.getElementById(it.id+'Custom').value='';
+            const siblings=controls.querySelectorAll('button.qtyBtn');
+            siblings.forEach(s=>s.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        controls.appendChild(btn);
+    }
+
+    const customInp=document.createElement('input');
+    customInp.type='number'; customInp.min=0; customInp.placeholder='직접입력';
+    customInp.id=it.id+'Custom';
+    customInp.oninput=()=>{
+        setQty(it.id, parseInt(customInp.value)||0);
+        const siblings=controls.querySelectorAll('button.qtyBtn');
+        siblings.forEach(s=>s.classList.remove('active'));
+    }
+    controls.appendChild(customInp);
+
     row.appendChild(left); row.appendChild(controls);
     itemsWrap.appendChild(row);
-    dec.onclick=()=>{setQty(it.id,qty[it.id]-1); inp.value=qty[it.id];}
-    inc.onclick=()=>{setQty(it.id,qty[it.id]+1); inp.value=qty[it.id];}
-    inp.oninput=()=>{setQty(it.id,parseInt(inp.value)||0);}
 });
 
 function setQty(id,val){qty[id]=Math.max(0,val); updateSummary();}
@@ -118,7 +137,6 @@ function updateSummary(){
     promoToggle.disabled=gameCount<2;
     if(gameCount<2) promoToggle.checked=false;
 
-    // 예약금 계산
     let depositTotal=0;
     if(deposit1.checked) depositTotal+=5000;
     if(deposit2.checked && gameCount>=2) depositTotal+=5000;
@@ -152,11 +170,9 @@ function updateSummary(){
     let total=game1Total + game2Total;
     totalPriceEl.innerHTML='<b>₩'+total.toLocaleString()+'</b>';
 
-    // 영수증 생성
     let now = new Date();
     let timeStr = now.toLocaleString();
-    let receipt = `팀: ${teamNameInput.value || '없음'}\n`;
-    receipt += `발행 시간: ${timeStr}\n------------------------------\n`;
+    let receipt = `팀: ${teamNameInput.value || '없음'}\n발행 시간: ${timeStr}\n------------------------------\n`;
     receipt += `게임1\n`;
     receipt += `성인 ${qty.adult}명 x 7,000원 = ₩${game1AdultPrice.toLocaleString()}\n`;
     receipt += `학생 ${qty.student}명 x 5,000원 = ₩${game1StudentPrice.toLocaleString()}\n`;
@@ -186,7 +202,6 @@ function updateSummary(){
     receipt += `총 금액: ₩${total.toLocaleString()}\n`;
     receiptWrap.innerText = receipt;
 
-    // 잔돈 계산
     const received = Number(receivedAmount.value) || 0;
     const change = received - total;
     changeAmount.innerText = change>=0 ? change.toLocaleString() : 0;
@@ -201,7 +216,8 @@ receivedAmount.oninput=updateSummary;
 
 document.getElementById('clearBtn').onclick=()=>{
     qty={adult:0,student:0,slush:0,socks:0,drink:0};
-    document.querySelectorAll('input.num').forEach(inp => inp.value = 0);
+    document.querySelectorAll('input.num, input[type=number]').forEach(inp => inp.value = '');
+    document.querySelectorAll('button.qtyBtn').forEach(b=>b.classList.remove('active'));
     gameCountSel.value='1';
     promoToggle.checked=false;
     deposit1.checked=false;
@@ -224,6 +240,5 @@ document.getElementById('saveImgBtn').onclick=()=>{
 
 updateSummary();
 </script>
-</div>
 </body>
 </html>
