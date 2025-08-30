@@ -1,14 +1,13 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>단일 팀 게임 계산기</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게임 계산기</title>
 <style>
-body{font-family:sans-serif;background:#f6f7fb;margin:0;padding:16px;color:#111827;}
-.wrap{max-width:600px;margin:auto;}
+body{font-family:sans-serif;background:#f6f7fb;padding:16px;}
+.wrap{max-width:700px;margin:auto;}
 h1{font-size:22px;margin-bottom:6px;}
-p.lead{color:#6b7280;font-size:13px;margin:0 0 16px;}
 .item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:12px;margin-bottom:8px;border-radius:12px;border:1px solid #e6e9ef;}
 .left{display:flex;flex-direction:column;}
 .label{font-weight:600;}
@@ -18,46 +17,45 @@ input.num{width:50px;text-align:center;border-radius:6px;border:1px solid #d1d5d
 button{padding:6px 10px;border-radius:8px;border:none;cursor:pointer;}
 button.btn{background:#111827;color:#fff;}
 .summary{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:12px;border-radius:12px;border:1px solid #e6e9ef;margin-top:12px;}
-.receipt{margin-top:10px;background:#fff;padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px;}
-.promo-label, .deposit{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:14px;}
-input#teamName{border:1px solid #d1d5db;border-radius:6px;padding:4px;width:150px;}
+.receipt{margin-top:10px;background:#fff;padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px;white-space:pre-line;}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>단일 팀 게임 계산기</h1>
-<p class="lead">1+1 행사, 예약금 적용, 연속게임, 영수증 출력 가능</p>
+<h1>게임 계산기</h1>
+<label>팀 이름: <input type="text" id="teamName" placeholder="팀 이름 입력"></label>
 
-<label class="promo-label">
-팀 이름: <input type="text" id="teamName" placeholder="팀 이름 입력">
-</label>
-
-<label class="promo-label">
-<input type="checkbox" id="promoToggle"> 1+1 행사 적용
-</label>
-
-<div id="app"></div>
-
-<div class="deposit">
-<label><input type="checkbox" id="depositChk"> 예약금 5,000원 적용</label>
-</div>
-
-<div class="summary">
-<div>
-<div class="muted">게임 횟수</div>
+<div class="item">
+<span>게임 횟수:</span>
 <select id="gameCount">
-<option value="1">1 게임</option>
-<option value="2">2 게임</option>
-<option value="3">3 게임</option>
+  <option value="1">1 게임</option>
+  <option value="2">2 게임</option>
+  <option value="3">3 게임</option>
 </select>
 </div>
-<div>
-<div class="muted">총 합계</div>
-<div id="totalPrice" style="font-weight:700">₩0</div>
-</div>
+
+<div class="item">
+<label><input type="checkbox" id="promoToggle"> 1+1 행사 적용 (2게임 이상 가능)</label>
 </div>
 
-<div id="receiptWrap"></div>
+<div class="item">
+<label><input type="checkbox" id="deposit1"> 1게임 예약금 5,000원</label>
+<label><input type="checkbox" id="deposit2"> 2게임 예약금 5,000원</label>
+<label><input type="checkbox" id="deposit3"> 3게임 예약금 5,000원</label>
+</div>
+
+<div id="itemsWrap"></div>
+
+<div class="summary">
+<div>총 합계: <span id="totalPrice">₩0</span></div>
+</div>
+
+<div id="receiptWrap" class="receipt"></div>
+
+<div style="margin-top:8px;">
+<label>받은 금액: <input type="number" id="receivedAmount" value="0"></label>
+<span>잔돈: ₩<span id="changeAmount">0</span></span>
+</div>
 
 <div style="margin-top:12px;">
 <button id="clearBtn" class="btn" style="background:#efefef;color:#111827;">전체 초기화</button>
@@ -67,7 +65,6 @@ input#teamName{border:1px solid #d1d5db;border-radius:6px;padding:4px;width:150p
 
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
-(function(){
 const ITEMS=[
 {id:'adult',label:'성인',price:7000},
 {id:'student',label:'학생',price:5000},
@@ -76,150 +73,157 @@ const ITEMS=[
 {id:'drink',label:'음료수',price:1000},
 ];
 
-let qty={adult:0,student:0,slush:0,socks:0,drink:0};
-const app=document.getElementById('app');
-const promoToggle=document.getElementById('promoToggle');
-const depositChk=document.getElementById('depositChk');
-const gameCountSel=document.getElementById('gameCount');
+const itemsWrap=document.getElementById('itemsWrap');
 const totalPriceEl=document.getElementById('totalPrice');
 const receiptWrap=document.getElementById('receiptWrap');
 const teamNameInput=document.getElementById('teamName');
+const gameCountSel=document.getElementById('gameCount');
+const promoToggle=document.getElementById('promoToggle');
+const deposit1=document.getElementById('deposit1');
+const deposit2=document.getElementById('deposit2');
+const deposit3=document.getElementById('deposit3');
+const receivedAmount=document.getElementById('receivedAmount');
+const changeAmount=document.getElementById('changeAmount');
 
-function currency(num){ return new Intl.NumberFormat('ko-KR',{style:'currency',currency:'KRW',maximumFractionDigits:0}).format(num); }
+let qty={adult:0,student:0,slush:0,socks:0,drink:0};
 
-function createItemRow(it){
+ITEMS.forEach(it=>{
     const row=document.createElement('div'); row.className='item';
     const left=document.createElement('div'); left.className='left';
-    left.innerHTML=`<div class="label">${it.label}</div><div class="price">${currency(it.price)}</div>`;
+    left.innerHTML=`<div class="label">${it.label}</div><div class="price">${it.price.toLocaleString()}원</div>`;
     const controls=document.createElement('div'); controls.className='controls';
     const dec=document.createElement('button'); dec.innerText='−';
-    const inp=document.createElement('input'); inp.type='number'; inp.className='num'; inp.value=qty[it.id];
+    const inp=document.createElement('input'); inp.type='number'; inp.className='num'; inp.value=0;
     const inc=document.createElement('button'); inc.innerText='+';
-    const line=document.createElement('div'); line.style.minWidth='60px'; line.style.textAlign='right'; line.style.fontWeight='600';
-    controls.appendChild(dec); controls.appendChild(inp); controls.appendChild(inc); controls.appendChild(line);
+    controls.appendChild(dec); controls.appendChild(inp); controls.appendChild(inc);
     row.appendChild(left); row.appendChild(controls);
-    row._elements={inp,line};
-    dec.onclick=()=>{changeQty(it.id,-1)};
-    inc.onclick=()=>{changeQty(it.id,1)};
-    inp.oninput=()=>{setQty(it.id,parseInt(inp.value)||0)};
-    return row;
-}
+    itemsWrap.appendChild(row);
+    dec.onclick=()=>{setQty(it.id,qty[it.id]-1); inp.value=qty[it.id];}
+    inc.onclick=()=>{setQty(it.id,qty[it.id]+1); inp.value=qty[it.id];}
+    inp.oninput=()=>{setQty(it.id,parseInt(inp.value)||0);}
+});
 
-const rows={};
-ITEMS.forEach(it=>{rows[it.id]=createItemRow(it);app.appendChild(rows[it.id]);});
+function setQty(id,val){qty[id]=Math.max(0,val); updateSummary();}
 
-function changeQty(id,delta){ setQty(id,(qty[id]||0)+delta); }
-function setQty(id,val){ qty[id]=Math.max(0,val); updateSummary(); }
-
-function applyPromotion(adultCount, studentCount, gameCount){
-    let adultPaid = Math.floor(adultCount/2);
-    let studentPaid = Math.floor(studentCount/2);
-    let adultRemain = adultCount%2;
-    let studentRemain = studentCount%2;
+function applyPromotion(adultCount, studentCount){
+    let adultPaid=Math.floor(adultCount/2), studentPaid=Math.floor(studentCount/2);
+    let adultRemain=adultCount%2, studentRemain=studentCount%2;
     if(adultRemain && studentRemain){ adultPaid+=1; adultRemain=0; studentRemain=0; }
-    adultPaid += adultRemain; studentPaid += studentRemain;
-    let adultPrice = adultPaid * 7000 * gameCount;
-    let studentPrice = studentPaid * 5000 * gameCount;
-    return {adultPaid, studentPaid, adultPrice, studentPrice};
+    adultPaid+=adultRemain; studentPaid+=studentRemain;
+    return {adultPaid, studentPaid};
 }
-
-let prePromoTotal = 0;
 
 function updateSummary(){
-    const gameCount = Number(gameCountSel.value) || 1;
-    const promoOn = promoToggle.checked;
+    let gameCount=Number(gameCountSel.value);
+    promoToggle.disabled=gameCount<2;
+    if(gameCount<2) promoToggle.checked=false;
 
-    // 체크 전 금액 계산
-    let tempTotal = 0;
-    tempTotal += qty['adult'] * 7000 * gameCount;
-    tempTotal += qty['student'] * 5000 * gameCount;
-    ['slush','socks','drink'].forEach(id => { tempTotal += qty[id] * ITEMS.find(i=>i.id===id).price * gameCount; });
-    prePromoTotal = tempTotal;
+    // 예약금 계산
+    let depositTotal=0;
+    if(deposit1.checked) depositTotal+=5000;
+    if(deposit2.checked && gameCount>=2) depositTotal+=5000;
+    if(deposit3.checked && gameCount>=3) depositTotal+=5000;
 
-    ITEMS.forEach(it=>{rows[it.id]._elements.inp.value = qty[it.id];});
+    // 1게임 금액
+    let game1AdultPrice = qty.adult*7000;
+    let game1StudentPrice = qty.student*5000;
+    let game1SlushPrice = qty.slush*1500;
+    let game1SocksPrice = qty.socks*1000;
+    let game1DrinkPrice = qty.drink*1000;
+    let game1Total = game1AdultPrice + game1StudentPrice + game1SlushPrice + game1SocksPrice + game1DrinkPrice;
+    if(deposit1.checked) game1Total -=5000;
 
-    // 1+1 행사 적용 시 슬러시/양말/음료 초기화
-    if(promoOn){ qty['slush'] = 0; qty['socks'] = 0; qty['drink'] = 0; }
-
-    let totalPrice=0;
-    let adultCount=qty['adult'];
-    let studentCount=qty['student'];
-    let adultPaid, studentPaid, adultPrice, studentPrice;
-
-    if(promoOn){ ({adultPaid,studentPaid,adultPrice,studentPrice}=applyPromotion(adultCount,studentCount,gameCount)); }
-    else{ adultPaid=adultCount; studentPaid=studentCount; adultPrice=adultCount*7000*gameCount; studentPrice=studentCount*5000*gameCount; }
-
-    rows['adult']._elements.line.innerText=currency(adultPrice);
-    rows['student']._elements.line.innerText=currency(studentPrice);
-    totalPrice+=adultPrice+studentPrice;
-
-    ['slush','socks','drink'].forEach(id=>{
-        const q=qty[id]; const price=q*ITEMS.find(i=>i.id===id).price*gameCount;
-        rows[id]._elements.line.innerText=currency(price);
-        totalPrice+=price;
-    });
-
-    // 예약금 적용 (1+1 행사 체크 시 자동 2배)
-    let depositAmount = 0;
-    if(depositChk.checked){
-        depositAmount = 5000 * gameCount;
-        if(promoOn) depositAmount *= 2;
+    // 2게임 이상 금액
+    let game2Total=0;
+    if(gameCount>1){
+        let totalAdult = qty.adult*(gameCount-1);
+        let totalStudent = qty.student*(gameCount-1);
+        let paidAdult=totalAdult, paidStudent=totalStudent;
+        if(promoToggle.checked){
+            const promo=applyPromotion(totalAdult,totalStudent);
+            paidAdult = promo.adultPaid;
+            paidStudent = promo.studentPaid;
+        }
+        game2Total = paidAdult*7000 + paidStudent*5000;
+        if(deposit2.checked) game2Total -=5000;
+        if(deposit3.checked && gameCount>=3) game2Total -=5000;
     }
-    totalPrice -= depositAmount;
-    if(totalPrice<0) totalPrice=0;
 
-    // 합산 표시
-    totalPriceEl.textContent = currency(totalPrice) + (promoOn ? ` (+${currency(prePromoTotal)} 합산)` : '');
+    let total=game1Total + game2Total;
+    totalPriceEl.innerHTML='<b>₩'+total.toLocaleString()+'</b>';
 
-    renderReceipt(gameCount,{adultCount,studentCount,adultPaid,studentPaid,adultPrice,studentPrice},promoOn,depositAmount,prePromoTotal);
+    // 영수증 생성
+    let now = new Date();
+    let timeStr = now.toLocaleString();
+    let receipt = `팀: ${teamNameInput.value || '없음'}\n`;
+    receipt += `발행 시간: ${timeStr}\n------------------------------\n`;
+    receipt += `게임1\n`;
+    receipt += `성인 ${qty.adult}명 x 7,000원 = ₩${game1AdultPrice.toLocaleString()}\n`;
+    receipt += `학생 ${qty.student}명 x 5,000원 = ₩${game1StudentPrice.toLocaleString()}\n`;
+    receipt += `슬러시 ${qty.slush}개 x 1,500원 = ₩${game1SlushPrice.toLocaleString()}\n`;
+    receipt += `양말 ${qty.socks}개 x 1,000원 = ₩${game1SocksPrice.toLocaleString()}\n`;
+    receipt += `음료 ${qty.drink}개 x 1,000원 = ₩${game1DrinkPrice.toLocaleString()}\n`;
+    if(deposit1.checked) receipt += `예약금 차감 -₩5,000\n`;
+    receipt += `합계: ₩${game1Total.toLocaleString()}\n------------------------------\n`;
+
+    if(gameCount>1){
+        receipt += `${gameCount-1}게임${promoToggle.checked?' (1+1 행사 적용)':''}\n`;
+        let totalAdult = qty.adult*(gameCount-1);
+        let totalStudent = qty.student*(gameCount-1);
+        let paidAdult=totalAdult, paidStudent=totalStudent;
+        if(promoToggle.checked){
+            const promo=applyPromotion(totalAdult,totalStudent);
+            paidAdult = promo.adultPaid;
+            paidStudent = promo.studentPaid;
+        }
+        receipt += `성인 ${totalAdult}명 → ${paidAdult}명 요금 = ₩${(paidAdult*7000).toLocaleString()}\n`;
+        receipt += `학생 ${totalStudent}명 → ${paidStudent}명 요금 = ₩${(paidStudent*5000).toLocaleString()}\n`;
+        if(deposit2.checked) receipt += `예약금 차감 -₩5,000\n`;
+        if(deposit3.checked && gameCount>=3) receipt += `예약금 차감 -₩5,000\n`;
+        receipt += `합계: ₩${game2Total.toLocaleString()}\n------------------------------\n`;
+    }
+
+    receipt += `총 금액: ₩${total.toLocaleString()}\n`;
+    receiptWrap.innerText = receipt;
+
+    // 잔돈 계산
+    const received = Number(receivedAmount.value) || 0;
+    const change = received - total;
+    changeAmount.innerText = change>=0 ? change.toLocaleString() : 0;
 }
 
-function renderReceipt(gameCount,promo,promoOn,depositAmount,prePromoTotal){
-    let lines=[];
-    lines.push({label:`성인 ${qty['adult']}명${promoOn?` (1+1 적용 ${promo.adultPaid}명 요금)`:''}`,price:promo.adultPrice});
-    lines.push({label:`학생 ${qty['student']}명${promoOn?` (1+1 적용 ${promo.studentPaid}명 요금)`:''}`,price:promo.studentPrice});
-    ['slush','socks','drink'].forEach(id=>{
-        const q=qty[id]; if(q>0){ const item=ITEMS.find(i=>i.id===id); lines.push({label:`${item.label} × ${q}`,price:q*item.price*gameCount}); }
-    });
-    if(depositAmount>0) lines.push({label:`예약금 차감`,price:-depositAmount});
-    if(promoOn) lines.push({label:`1+1 행사 체크 전 금액`, price:prePromoTotal});
-
-    let html='<div class="receipt"><div style="font-weight:700;margin-bottom:8px">영수증 미리보기</div>';
-    const now=new Date(); 
-    const teamName = teamNameInput.value.trim() || '팀 없음';
-    html+=`<div>팀: ${teamName}</div>`;
-    html+=`<div>날짜: ${now.toLocaleString()}</div>`;
-    let total=0;
-    lines.forEach(l=>{ html+=`<div style="display:flex;justify-content:space-between;padding:4px 0"><div>${l.label}</div><div style="font-weight:600">${currency(l.price)}</div></div>`; total+=l.price; });
-    html+=`<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px dashed #e6e9ef;padding-top:4px"><div>총 합계</div><div style="font-weight:800">${currency(total)}</div></div></div>`;
-    receiptWrap.innerHTML=html;
-}
-
-promoToggle.onchange = updateSummary;
-depositChk.onchange=updateSummary;
 gameCountSel.onchange=updateSummary;
-teamNameInput.oninput=updateSummary;
+promoToggle.onchange=updateSummary;
+deposit1.onchange=updateSummary;
+deposit2.onchange=updateSummary;
+deposit3.onchange=updateSummary;
+receivedAmount.oninput=updateSummary;
 
 document.getElementById('clearBtn').onclick=()=>{
-    Object.keys(qty).forEach(k=>qty[k]=0);
-    depositChk.checked=false; promoToggle.checked=false;
+    qty={adult:0,student:0,slush:0,socks:0,drink:0};
+    document.querySelectorAll('input.num').forEach(inp => inp.value = 0);
     gameCountSel.value='1';
-    teamNameInput.value='';
+    promoToggle.checked=false;
+    deposit1.checked=false;
+    deposit2.checked=false;
+    deposit3.checked=false;
+    receivedAmount.value=0;
     updateSummary();
 };
 
-document.getElementById('printBtn').onclick=()=>{ window.print(); };
+document.getElementById('printBtn').onclick=()=>{window.print();};
+
 document.getElementById('saveImgBtn').onclick=()=>{
     html2canvas(receiptWrap).then(canvas=>{
         const link=document.createElement('a');
         link.download='receipt.png';
-        link.href=canvas.toDataURL('image/png');
+        link.href=canvas.toDataURL();
         link.click();
     });
 };
 
 updateSummary();
-})();
 </script>
+</div>
 </body>
 </html>
